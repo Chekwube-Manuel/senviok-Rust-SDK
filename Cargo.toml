@@ -15,14 +15,15 @@ exclude = [".env", ".github"]
 repository = "https://github.com/Chekwube-Manuel/senviok-Rust-SDK"
 
 [dependencies]
-reqwest = { version = "0.13.4", features = ["json", "query"] }
+base64 = "0.22"
+reqwest = { version = "0.13.4", features = ["json", "query", "multipart"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 thiserror = "2.0.18"
 
 [dev-dependencies]
 dotenvy = "0.15"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util"] }
 
 [package.metadata.docs.rs]
 all-features = true

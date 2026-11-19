@@ -7,6 +7,7 @@ use crate::{
         webhooks::Webhooks, whatsapp::Whatsapp,
     },
 };
+use reqwest::multipart::{Form, Part};
 use reqwest::Method;
 use serde::{Serialize, de::DeserializeOwned};
 
@@ -156,6 +157,56 @@ impl Senviok {
                 }
             }
         }
+    }
+
+    pub(crate) async fn request_multipart<T>(
+        &self,
+        path: &str,
+        filename: &str,
+        content_type: &str,
+        content: Vec<u8>,
+    ) -> Result<T, SenviokError>
+    where
+        T: DeserializeOwned,
+    {
+        if content.is_empty() || content.len() > 10 * 1024 * 1024 {
+            return Err(SenviokError::Api {
+                status: reqwest::StatusCode::BAD_REQUEST,
+                message: "Attachment must be between 1 byte and 10 MB".into(),
+                body: String::new(),
+            });
+        }
+        let part = Part::bytes(content)
+            .file_name(filename.to_string())
+            .mime_str(content_type)?;
+        let form = Form::new().part("file", part);
+        let response = self
+            .http
+            .post(format!("{}{}", self.base_url, path))
+            .bearer_auth(&self.api_key)
+            .multipart(form)
+            .send()
+            .await?;
+        let status = response.status();
+        let text = response.text().await?;
+        if !status.is_success() {
+            let message = serde_json::from_str::<ApiErrorResponse>(&text)
+                .ok()
+                .and_then(|error| error.message)
+                .unwrap_or_else(|| {
+                    if text.is_empty() {
+                        "Unknown API error".into()
+                    } else {
+                        text.clone()
+                    }
+                });
+            return Err(SenviokError::Api {
+                status,
+                message,
+                body: text,
+            });
+        }
+        serde_json::from_str(&text).map_err(SenviokError::from)
     }
 
     pub(crate) async fn request_unit(

@@ -163,6 +163,41 @@ client
 
 Optional fields: `from_name`, `cc`, `bcc`, `reply_to`, `html`, `text`, `template_id`, `template_data`, `add_unsubscribe_footer`, `add_list_unsubscribe_header`.
 
+Attachments accept base64 `content` or a public HTTPS `path` (exactly one per file). For larger files, upload multipart field `file` to `POST /v1/emails/attachments` and pass returned IDs in `attachment_ids`:
+
+```rust
+let pdf_bytes = std::fs::read("invoice.pdf")?;
+use senviok::{EmailAttachment, SendEmailRequest};
+
+client.emails().send(SendEmailRequest {
+    from: "billing@example.com".into(),
+    to: "customer@example.com".into(),
+    subject: "Your invoice".into(),
+    attachments: Some(vec![EmailAttachment::from_bytes(
+        "invoice.pdf", &pdf_bytes, "application/pdf",
+    )]),
+    ..Default::default()
+}).await?;
+```
+
+The API allows up to 10 files and 10 MB total per email.
+
+For streamed upload storage, upload bytes first and send the returned ID:
+
+```rust
+let pdf_bytes = std::fs::read("invoice.pdf")?;
+let uploaded = client.emails().upload_attachment(
+    "invoice.pdf", pdf_bytes, "application/pdf",
+).await?;
+client.emails().send(SendEmailRequest {
+    from: "billing@example.com".into(),
+    to: "customer@example.com".into(),
+    subject: "Your invoice".into(),
+    attachment_ids: Some(vec![uploaded.id]),
+    ..Default::default()
+}).await?;
+```
+
 ---
 
 ### SMS
